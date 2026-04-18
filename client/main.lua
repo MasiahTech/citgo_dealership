@@ -46,6 +46,9 @@ end
 local function teleportToPreview()
     local ped = PlayerPedId()
     savedCoords = GetEntityCoords(ped)
+
+    TriggerServerEvent('citgo_dealership:enterBucket')
+
     local pp = Config.PreviewPoint
     SetEntityCoords(ped, pp.x, pp.y, pp.z - 5.0, false, false, false, false)
     FreezeEntityPosition(ped, true)
@@ -62,6 +65,8 @@ local function teleportBack()
     SetEntityVisible(ped, true, true)
     SetEntityCollision(ped, true, true)
     savedCoords = nil
+
+    TriggerServerEvent('citgo_dealership:exitBucket')
 end
 
 local function spawnPreviewVehicle(model)

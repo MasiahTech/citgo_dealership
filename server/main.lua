@@ -1,5 +1,19 @@
 local QBCore = exports['qb-core']:GetCoreObject()
 
+-- ── Routing Buckets ─────────────────────────────────────────────────────────
+
+RegisterNetEvent('citgo_dealership:enterBucket', function()
+    local src = source
+    SetPlayerRoutingBucket(src, src)
+end)
+
+RegisterNetEvent('citgo_dealership:exitBucket', function()
+    local src = source
+    SetPlayerRoutingBucket(src, 0)
+end)
+
+-- ── Helpers ─────────────────────────────────────────────────────────────────
+
 local function generatePlate()
     local chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
     local plate
