@@ -1,7 +1,8 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect, useRef, useCallback } from 'react'
 import { CategorySidebar } from './CategorySidebar'
 import { VehicleGrid } from './VehicleGrid'
 import { VehicleDetail } from './VehicleDetail'
+import { fetchNUI } from '../utils/fetchNUI'
 
 const border = (o = 0.06) => `1px solid rgba(255,255,255,${o})`
 
@@ -23,12 +24,67 @@ export function DealershipUI({
     return vehicles.filter(v => v.category === activeCategory)
   }, [vehicles, activeCategory])
 
+  const dragging = useRef(false)
+  const lastX    = useRef(0)
+
+  const handleMouseDown = useCallback((e) => {
+    if (!previewing) return
+    if (e.target.closest('[data-no-orbit]')) return
+    dragging.current = true
+    lastX.current = e.clientX
+  }, [previewing])
+
+  const handleMouseMove = useCallback((e) => {
+    if (!dragging.current || !previewing) return
+    const dx = (e.clientX - lastX.current) * 0.4
+    lastX.current = e.clientX
+    if (Math.abs(dx) > 0.1) {
+      fetchNUI('camRotate', { dx })
+    }
+  }, [previewing])
+
+  const handleMouseUp = useCallback(() => {
+    dragging.current = false
+  }, [])
+
+  const handleWheel = useCallback((e) => {
+    if (!previewing) return
+    if (e.target.closest('[data-no-orbit]')) return
+    const direction = e.deltaY < 0 ? 1 : -1
+    fetchNUI('camZoom', { direction })
+  }, [previewing])
+
+  const handleKeyDown = useCallback((e) => {
+    if (!previewing) return
+    if (e.key === 'w' || e.key === 'W') {
+      fetchNUI('camHeight', { delta: 0.15 })
+    } else if (e.key === 's' || e.key === 'S') {
+      fetchNUI('camHeight', { delta: -0.15 })
+    }
+  }, [previewing])
+
+  useEffect(() => {
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('wheel', handleWheel)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, handleKeyDown])
+
   return (
     <div className="fixed inset-0 z-9998 bg-transparent pointer-events-none">
 
       {/* LEFT: Category sidebar — hidden during preview */}
       {!previewing && (
         <div
+          data-no-orbit
           className="pointer-events-auto fixed left-5 top-5 bottom-5 z-9999 flex flex-col glass animate-enter"
           style={{ width: 260, borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
           <CategorySidebar
@@ -43,6 +99,7 @@ export function DealershipUI({
 
       {/* RIGHT: Vehicles / Detail panel */}
       <div
+        data-no-orbit
         className="pointer-events-auto fixed right-5 top-5 bottom-5 z-9999 flex flex-col glass animate-enter"
         style={{ width: 400, borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
 

@@ -9,7 +9,7 @@ local activeMenu   = nil
 local previewCam   = nil
 local isPreviewing = false
 local camAngle     = 0.0
-local camHeight    = 0.0
+local camHeight    = 0.5
 local camRadius    = 6.0
 local savedCoords  = nil
 
@@ -79,24 +79,6 @@ local function spawnPreviewVehicle(model)
     SetModelAsNoLongerNeeded(hash)
 end
 
-local function createPreviewCam()
-    local pp = Config.PreviewPoint
-    camAngle  = pp.w + 180.0
-    camHeight = 0.5
-    camRadius = 6.0
-
-    previewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
-    local cx = pp.x + camRadius * math.cos(math.rad(camAngle))
-    local cy = pp.y + camRadius * math.sin(math.rad(camAngle))
-    local cz = pp.z + camHeight
-
-    SetCamCoord(previewCam, cx, cy, cz)
-    PointCamAtCoord(previewCam, pp.x, pp.y, pp.z + 0.5)
-    SetCamActive(previewCam, true)
-    RenderScriptCams(true, true, 500, true, false)
-    isPreviewing = true
-end
-
 local function updateCamPosition()
     if not previewCam then return end
     local pp = Config.PreviewPoint
@@ -108,44 +90,18 @@ local function updateCamPosition()
     PointCamAtCoord(previewCam, pp.x, pp.y, pp.z + 0.5)
 end
 
--- Camera orbit thread
-CreateThread(function()
-    while true do
-        if isPreviewing and previewCam then
-            DisableAllControlActions(0)
-            EnableControlAction(0, 249, true) -- cursor
-            EnableControlAction(0, 194, true) -- escape
+local function createPreviewCam()
+    local pp = Config.PreviewPoint
+    camAngle  = pp.w + 180.0
+    camHeight = 0.5
+    camRadius = 6.0
 
-            -- Mouse drag to rotate
-            if IsDisabledControlPressed(0, 24) then -- LMB
-                local dx = GetDisabledControlNormal(0, 1) * 8.0
-                camAngle = camAngle - dx
-                updateCamPosition()
-            end
-
-            -- Scroll to zoom
-            if IsDisabledControlJustPressed(0, 15) then -- scroll up
-                camRadius = math.max(3.0, camRadius - 0.5)
-                updateCamPosition()
-            end
-            if IsDisabledControlJustPressed(0, 16) then -- scroll down
-                camRadius = math.min(12.0, camRadius + 0.5)
-                updateCamPosition()
-            end
-
-            -- W/S for height
-            if IsDisabledControlPressed(0, 32) then -- W
-                camHeight = math.min(3.0, camHeight + 0.03)
-                updateCamPosition()
-            end
-            if IsDisabledControlPressed(0, 33) then -- S
-                camHeight = math.max(-1.0, camHeight - 0.03)
-                updateCamPosition()
-            end
-        end
-        Wait(0)
-    end
-end)
+    previewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    updateCamPosition()
+    SetCamActive(previewCam, true)
+    RenderScriptCams(true, true, 500, true, false)
+    isPreviewing = true
+end
 
 local function applyPrimaryColor(color)
     if not previewVeh or not DoesEntityExist(previewVeh) then return end
@@ -162,6 +118,10 @@ local function applyPlate(plate)
     SetVehicleNumberPlateText(previewVeh, plate:upper():sub(1, 8))
 end
 
+local function hideHUD(hide)
+    exports['ZSX_UIV2']:HideInterface(hide)
+end
+
 -- ── Open / Close ─────────────────────────────────────────────────────────────
 
 local function openDealership(shopId)
@@ -170,6 +130,8 @@ local function openDealership(shopId)
     if not shop then return end
     currentShop = shopId
     isOpen = true
+
+    hideHUD(true)
 
     QBCore.Functions.TriggerCallback('citgo_dealership:getVehicles', function(vehicles)
         local categoriesSet = {}
@@ -222,6 +184,7 @@ local function closeDealership()
     deletePreview()
     SetNuiFocus(false, false)
     SendNUIMessage({ type = 'close' })
+    hideHUD(false)
 end
 
 -- ── NUI Callbacks ────────────────────────────────────────────────────────────
@@ -272,6 +235,33 @@ RegisterNUICallback('checkPlate', function(data, cb)
     QBCore.Functions.TriggerCallback('citgo_dealership:checkPlate', function(available)
         cb({ available = available })
     end, data.plate)
+end)
+
+-- Camera orbit controlled from NUI
+RegisterNUICallback('camRotate', function(data, cb)
+    if not isPreviewing then cb('ok') return end
+    camAngle = camAngle - (data.dx or 0)
+    updateCamPosition()
+    cb('ok')
+end)
+
+RegisterNUICallback('camZoom', function(data, cb)
+    if not isPreviewing then cb('ok') return end
+    local dir = data.direction or 0
+    if dir > 0 then
+        camRadius = math.max(3.0, camRadius - 0.5)
+    elseif dir < 0 then
+        camRadius = math.min(12.0, camRadius + 0.5)
+    end
+    updateCamPosition()
+    cb('ok')
+end)
+
+RegisterNUICallback('camHeight', function(data, cb)
+    if not isPreviewing then cb('ok') return end
+    camHeight = math.max(-1.0, math.min(3.0, camHeight + (data.delta or 0)))
+    updateCamPosition()
+    cb('ok')
 end)
 
 RegisterNUICallback('purchaseVehicle', function(data, cb)
@@ -473,6 +463,7 @@ AddEventHandler('onResourceStop', function(resource)
     destroyPreviewCam()
     deletePreview()
     if savedCoords then teleportBack() end
+    hideHUD(false)
     for _, ped in ipairs(spawnedNpcs) do
         if DoesEntityExist(ped) then DeleteEntity(ped) end
     end
