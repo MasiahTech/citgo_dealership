@@ -85,8 +85,8 @@ export function DealershipUI({
       {!previewing && (
         <div
           data-no-orbit
-          className="pointer-events-auto fixed left-5 top-5 bottom-5 z-9999 flex flex-col glass animate-enter"
-          style={{ width: 260, borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
+          className="pointer-events-auto fixed left-5 top-5 z-9999 flex flex-col glass animate-enter"
+          style={{ width: 260, maxHeight: 'calc(100vh - 40px)', borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
           <CategorySidebar
             categories={categories}
             vehicles={vehicles}

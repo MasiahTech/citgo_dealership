@@ -58,7 +58,7 @@ export function CategorySidebar({ categories, vehicles, activeCategory, onSelect
   vehicles.forEach(v => { counts[v.category] = (counts[v.category] || 0) + 1 })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ padding: '15px 16px 11px', flexShrink: 0 }}>
         <p style={{ fontSize: 16, fontWeight: 700, color: '#eee', letterSpacing: '-0.02em' }}>
           {shopLabel}
