@@ -79,7 +79,10 @@ local function getFinanceDetails(citizenid, vehiclePrice)
         return nil, 'Financing is not available'
     end
 
-    local score = exports['tgg-banking']:GetCreditScore(citizenid)
+    local ok, score = pcall(exports['tgg-banking'].GetCreditScore, exports['tgg-banking'], citizenid)
+    if not ok or not score then
+        score = MySQL.scalar.await('SELECT score FROM tgg_banking_credit_scores WHERE playerId = ?', { citizenid })
+    end
     if not score then
         return nil, 'Unable to retrieve credit score'
     end
@@ -288,19 +291,20 @@ CreateThread(function()
     while true do
         Wait(Config.Finance.repoCheckInterval * 1000)
 
-        local loans = MySQL.query.await('SELECT * FROM dealership_loans WHERE repossessed = 0')
+        local loans = MySQL.query.await([[
+            SELECT dl.*, tbl.missedPayments, tbl.status AS loanStatus
+            FROM dealership_loans dl
+            JOIN tgg_banking_loans tbl ON tbl.loanId = dl.loan_id
+            WHERE dl.repossessed = 0
+        ]])
         if loans then
             for _, record in ipairs(loans) do
-                local paymentInfo = exports['tgg-banking']:GetLoanPaymentDue(record.loan_id)
-
-                if paymentInfo and paymentInfo.missedPayments and paymentInfo.missedPayments >= Config.Finance.maxMissedPayments then
-                    -- Repossess: delete vehicle from player_vehicles
+                if record.missedPayments and record.missedPayments >= Config.Finance.maxMissedPayments then
                     MySQL.update.await('DELETE FROM player_vehicles WHERE citizenid = ? AND plate = ?', {
                         record.citizenid, record.plate
                     })
                     MySQL.update.await('UPDATE dealership_loans SET repossessed = 1 WHERE id = ?', { record.id })
 
-                    -- Notify player if online
                     local Player = QBCore.Functions.GetPlayerByCitizenId(record.citizenid)
                     if Player then
                         TriggerClientEvent('QBCore:Notify', Player.PlayerData.source,
@@ -310,7 +314,7 @@ CreateThread(function()
                     end
 
                     print(('[citgo_dealership] Repossessed %s (plate: %s) from %s — %d missed payments'):format(
-                        record.vehicle, record.plate, record.citizenid, paymentInfo.missedPayments
+                        record.vehicle, record.plate, record.citizenid, record.missedPayments
                     ))
                 end
             end
