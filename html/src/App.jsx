@@ -14,11 +14,14 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState(null)
   const [searchQuery, setSearchQuery]   = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
-  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR)
+  const [primaryColor, setPrimaryColor] = useState(DEFAULT_COLOR)
+  const [secondaryColor, setSecondaryColor] = useState(null)
   const [plateText, setPlateText]       = useState('')
   const [plateAvailable, setPlateAvailable] = useState(null)
   const [purchasing, setPurchasing]     = useState(false)
   const [sortMode, setSortMode]         = useState('name-asc')
+  const [previewing, setPreviewing]     = useState(false)
+  const [secondaryColorPrice, setSecondaryColorPrice] = useState(2000)
 
   useEffect(() => {
     const handler = (e) => {
@@ -29,13 +32,16 @@ export default function App() {
         setVehicles(d.vehicles || [])
         setCategories(d.categories || [])
         setShopLabel(d.shopLabel || 'Dealership')
+        setSecondaryColorPrice(d.secondaryColorPrice || 2000)
         setActiveCategory(null)
         setSearchQuery('')
         setSelectedVehicle(null)
-        setSelectedColor(DEFAULT_COLOR)
+        setPrimaryColor(DEFAULT_COLOR)
+        setSecondaryColor(null)
         setPlateText('')
         setPlateAvailable(null)
         setPurchasing(false)
+        setPreviewing(false)
         setSortMode('name-asc')
         setVisible(true)
         return
@@ -43,6 +49,7 @@ export default function App() {
 
       if (d.type === 'close') {
         setVisible(false)
+        setPreviewing(false)
         return
       }
     }
@@ -52,33 +59,70 @@ export default function App() {
 
   const handleSelectVehicle = useCallback((vehicle) => {
     setSelectedVehicle(vehicle)
-    setSelectedColor(DEFAULT_COLOR)
+    setPrimaryColor(DEFAULT_COLOR)
+    setSecondaryColor(null)
     setPlateText('')
     setPlateAvailable(null)
-    fetchNUI('previewVehicle', { model: vehicle.model, color: DEFAULT_COLOR })
+    setPreviewing(false)
   }, [])
 
   const handleBack = useCallback(() => {
+    if (previewing) {
+      fetchNUI('exitPreview')
+      setPreviewing(false)
+    }
     setSelectedVehicle(null)
-    setSelectedColor(DEFAULT_COLOR)
+    setPrimaryColor(DEFAULT_COLOR)
+    setSecondaryColor(null)
     setPlateText('')
     setPlateAvailable(null)
-    fetchNUI('previewVehicle', { model: null })
+  }, [previewing])
+
+  const handlePreview = useCallback(() => {
+    if (!selectedVehicle) return
+    setPreviewing(true)
+    fetchNUI('previewVehicle', {
+      model: selectedVehicle.model,
+      color: primaryColor,
+      secondaryColor: secondaryColor,
+      plate: plateText || null,
+    })
+  }, [selectedVehicle, primaryColor, secondaryColor, plateText])
+
+  const handleExitPreview = useCallback(() => {
+    fetchNUI('exitPreview')
+    setPreviewing(false)
   }, [])
 
-  const handleColorChange = useCallback((color) => {
-    setSelectedColor(color)
-    fetchNUI('changeColor', { color })
-  }, [])
+  const handlePrimaryColorChange = useCallback((color) => {
+    setPrimaryColor(color)
+    if (previewing) fetchNUI('changePrimaryColor', { color })
+  }, [previewing])
+
+  const handleSecondaryColorChange = useCallback((color) => {
+    setSecondaryColor(color)
+    if (previewing) fetchNUI('changeSecondaryColor', { color })
+  }, [previewing])
+
+  const handleToggleSecondary = useCallback((enabled) => {
+    if (enabled) {
+      const c = { ...primaryColor }
+      setSecondaryColor(c)
+      if (previewing) fetchNUI('changeSecondaryColor', { color: c })
+    } else {
+      setSecondaryColor(null)
+      if (previewing) fetchNUI('changeSecondaryColor', { color: primaryColor })
+    }
+  }, [primaryColor, previewing])
 
   const handlePlateChange = useCallback((plate) => {
     const clean = plate.toUpperCase().replace(/[^A-Z0-9 ]/g, '').slice(0, 8)
     setPlateText(clean)
     setPlateAvailable(null)
-    if (clean.length > 0) {
+    if (clean.length > 0 && previewing) {
       fetchNUI('changePlate', { plate: clean })
     }
-  }, [])
+  }, [previewing])
 
   const handleCheckPlate = useCallback(async () => {
     if (!plateText.trim()) return
@@ -91,22 +135,29 @@ export default function App() {
     setPurchasing(true)
     fetchNUI('purchaseVehicle', {
       model: selectedVehicle.model,
-      color: selectedColor,
+      color: primaryColor,
+      secondaryColor: secondaryColor,
       plate: plateText || null,
     })
-  }, [selectedVehicle, selectedColor, plateText, purchasing])
+  }, [selectedVehicle, primaryColor, secondaryColor, plateText, purchasing])
 
   const handleClose = useCallback(() => {
+    if (previewing) {
+      fetchNUI('exitPreview')
+      setPreviewing(false)
+    }
     setVisible(false)
     fetchNUI('closeUI')
-  }, [])
+  }, [previewing])
 
   useEffect(() => {
     if (!visible) return
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault()
-        if (selectedVehicle) {
+        if (previewing) {
+          handleExitPreview()
+        } else if (selectedVehicle) {
           handleBack()
         } else {
           handleClose()
@@ -115,7 +166,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [visible, selectedVehicle, handleBack, handleClose])
+  }, [visible, selectedVehicle, previewing, handleBack, handleClose, handleExitPreview])
 
   if (!visible) return null
 
@@ -133,8 +184,12 @@ export default function App() {
       selectedVehicle={selectedVehicle}
       onSelectVehicle={handleSelectVehicle}
       onBack={handleBack}
-      selectedColor={selectedColor}
-      onColorChange={handleColorChange}
+      primaryColor={primaryColor}
+      onPrimaryColorChange={handlePrimaryColorChange}
+      secondaryColor={secondaryColor}
+      onSecondaryColorChange={handleSecondaryColorChange}
+      onToggleSecondary={handleToggleSecondary}
+      secondaryColorPrice={secondaryColorPrice}
       plateText={plateText}
       onPlateChange={handlePlateChange}
       plateAvailable={plateAvailable}
@@ -142,6 +197,9 @@ export default function App() {
       purchasing={purchasing}
       onPurchase={handlePurchase}
       onClose={handleClose}
+      previewing={previewing}
+      onPreview={handlePreview}
+      onExitPreview={handleExitPreview}
     />
   )
 }

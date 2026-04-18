@@ -6,6 +6,13 @@ local currentShop  = nil
 local spawnedNpcs  = {}
 local activeMenu   = nil
 
+local previewCam   = nil
+local isPreviewing = false
+local camAngle     = 0.0
+local camHeight    = 0.0
+local camRadius    = 6.0
+local savedCoords  = nil
+
 -- ── Helpers ──────────────────────────────────────────────────────────────────
 
 local function loadModel(model)
@@ -27,15 +34,43 @@ local function deletePreview()
     previewVeh = nil
 end
 
-local function spawnPreview(model, shopId)
+local function destroyPreviewCam()
+    if previewCam then
+        RenderScriptCams(false, true, 500, true, false)
+        DestroyCam(previewCam, false)
+        previewCam = nil
+    end
+    isPreviewing = false
+end
+
+local function teleportToPreview()
+    local ped = PlayerPedId()
+    savedCoords = GetEntityCoords(ped)
+    local pp = Config.PreviewPoint
+    SetEntityCoords(ped, pp.x, pp.y, pp.z - 5.0, false, false, false, false)
+    FreezeEntityPosition(ped, true)
+    SetEntityVisible(ped, false, false)
+    SetEntityCollision(ped, false, false)
+end
+
+local function teleportBack()
+    local ped = PlayerPedId()
+    if savedCoords then
+        SetEntityCoords(ped, savedCoords.x, savedCoords.y, savedCoords.z, false, false, false, false)
+    end
+    FreezeEntityPosition(ped, false)
+    SetEntityVisible(ped, true, true)
+    SetEntityCollision(ped, true, true)
+    savedCoords = nil
+end
+
+local function spawnPreviewVehicle(model)
     deletePreview()
-    local shop  = Config.Dealerships[shopId]
-    if not shop then return end
-    local spawn = shop.spawnPoint
-    local hash  = loadModel(model)
+    local pp   = Config.PreviewPoint
+    local hash = loadModel(model)
     if not HasModelLoaded(hash) then return end
 
-    previewVeh = CreateVehicle(hash, spawn.x, spawn.y, spawn.z, spawn.w, false, false)
+    previewVeh = CreateVehicle(hash, pp.x, pp.y, pp.z, pp.w, false, false)
     SetEntityAsMissionEntity(previewVeh, true, true)
     SetVehicleOnGroundProperly(previewVeh)
     FreezeEntityPosition(previewVeh, true)
@@ -44,13 +79,82 @@ local function spawnPreview(model, shopId)
     SetModelAsNoLongerNeeded(hash)
 end
 
-local function applyColor(color)
+local function createPreviewCam()
+    local pp = Config.PreviewPoint
+    camAngle  = pp.w + 180.0
+    camHeight = 0.5
+    camRadius = 6.0
+
+    previewCam = CreateCam('DEFAULT_SCRIPTED_CAMERA', true)
+    local cx = pp.x + camRadius * math.cos(math.rad(camAngle))
+    local cy = pp.y + camRadius * math.sin(math.rad(camAngle))
+    local cz = pp.z + camHeight
+
+    SetCamCoord(previewCam, cx, cy, cz)
+    PointCamAtCoord(previewCam, pp.x, pp.y, pp.z + 0.5)
+    SetCamActive(previewCam, true)
+    RenderScriptCams(true, true, 500, true, false)
+    isPreviewing = true
+end
+
+local function updateCamPosition()
+    if not previewCam then return end
+    local pp = Config.PreviewPoint
+    local cx = pp.x + camRadius * math.cos(math.rad(camAngle))
+    local cy = pp.y + camRadius * math.sin(math.rad(camAngle))
+    local cz = pp.z + camHeight
+
+    SetCamCoord(previewCam, cx, cy, cz)
+    PointCamAtCoord(previewCam, pp.x, pp.y, pp.z + 0.5)
+end
+
+-- Camera orbit thread
+CreateThread(function()
+    while true do
+        if isPreviewing and previewCam then
+            DisableAllControlActions(0)
+            EnableControlAction(0, 249, true) -- cursor
+            EnableControlAction(0, 194, true) -- escape
+
+            -- Mouse drag to rotate
+            if IsDisabledControlPressed(0, 24) then -- LMB
+                local dx = GetDisabledControlNormal(0, 1) * 8.0
+                camAngle = camAngle - dx
+                updateCamPosition()
+            end
+
+            -- Scroll to zoom
+            if IsDisabledControlJustPressed(0, 15) then -- scroll up
+                camRadius = math.max(3.0, camRadius - 0.5)
+                updateCamPosition()
+            end
+            if IsDisabledControlJustPressed(0, 16) then -- scroll down
+                camRadius = math.min(12.0, camRadius + 0.5)
+                updateCamPosition()
+            end
+
+            -- W/S for height
+            if IsDisabledControlPressed(0, 32) then -- W
+                camHeight = math.min(3.0, camHeight + 0.03)
+                updateCamPosition()
+            end
+            if IsDisabledControlPressed(0, 33) then -- S
+                camHeight = math.max(-1.0, camHeight - 0.03)
+                updateCamPosition()
+            end
+        end
+        Wait(0)
+    end
+end)
+
+local function applyPrimaryColor(color)
     if not previewVeh or not DoesEntityExist(previewVeh) then return end
-    local r = color.r or 0
-    local g = color.g or 0
-    local b = color.b or 0
-    SetVehicleCustomPrimaryColour(previewVeh, r, g, b)
-    SetVehicleCustomSecondaryColour(previewVeh, r, g, b)
+    SetVehicleCustomPrimaryColour(previewVeh, color.r or 0, color.g or 0, color.b or 0)
+end
+
+local function applySecondaryColor(color)
+    if not previewVeh or not DoesEntityExist(previewVeh) then return end
+    SetVehicleCustomSecondaryColour(previewVeh, color.r or 0, color.g or 0, color.b or 0)
 end
 
 local function applyPlate(plate)
@@ -93,11 +197,12 @@ local function openDealership(shopId)
         end
 
         SendNUIMessage({
-            type       = 'open',
-            vehicles   = filtered,
-            categories = cats,
-            shopLabel  = shop.label,
-            shopId     = shopId,
+            type               = 'open',
+            vehicles           = filtered,
+            categories         = cats,
+            shopLabel          = shop.label,
+            shopId             = shopId,
+            secondaryColorPrice = Config.SecondaryColorPrice,
         })
         SetNuiFocus(true, true)
     end, shop.shopKey)
@@ -107,6 +212,13 @@ local function closeDealership()
     if not isOpen then return end
     isOpen = false
     currentShop = nil
+
+    if isPreviewing then
+        destroyPreviewCam()
+        deletePreview()
+        teleportBack()
+    end
+
     deletePreview()
     SetNuiFocus(false, false)
     SendNUIMessage({ type = 'close' })
@@ -115,16 +227,35 @@ end
 -- ── NUI Callbacks ────────────────────────────────────────────────────────────
 
 RegisterNUICallback('previewVehicle', function(data, cb)
-    if data.model and currentShop then
-        spawnPreview(data.model, currentShop)
-        if data.color then applyColor(data.color) end
+    if data.model then
+        teleportToPreview()
+        spawnPreviewVehicle(data.model)
+        if data.color then applyPrimaryColor(data.color) end
+        if data.secondaryColor then applySecondaryColor(data.secondaryColor) end
         if data.plate and #data.plate > 0 then applyPlate(data.plate) end
+        createPreviewCam()
+    else
+        destroyPreviewCam()
+        deletePreview()
+        teleportBack()
     end
     cb('ok')
 end)
 
-RegisterNUICallback('changeColor', function(data, cb)
-    if data.color then applyColor(data.color) end
+RegisterNUICallback('exitPreview', function(_, cb)
+    destroyPreviewCam()
+    deletePreview()
+    teleportBack()
+    cb('ok')
+end)
+
+RegisterNUICallback('changePrimaryColor', function(data, cb)
+    if data.color then applyPrimaryColor(data.color) end
+    cb('ok')
+end)
+
+RegisterNUICallback('changeSecondaryColor', function(data, cb)
+    if data.color then applySecondaryColor(data.color) end
     cb('ok')
 end)
 
@@ -146,17 +277,22 @@ end)
 RegisterNUICallback('purchaseVehicle', function(data, cb)
     QBCore.Functions.TriggerCallback('citgo_dealership:purchaseVehicle', function(result)
         if result.success then
+            destroyPreviewCam()
             deletePreview()
+            teleportBack()
 
             QBCore.Functions.Notify('Vehicle purchased! Plate: ' .. result.plate, 'success', 5000)
 
             local shop  = Config.Dealerships[currentShop]
             local spawn = shop.spawnPoint
             QBCore.Functions.SpawnVehicle(data.model, function(veh)
+                local primaryColor   = data.color or { r = 0, g = 0, b = 0 }
+                local secondaryColor = data.secondaryColor or primaryColor
+
                 local props = {
                     plate  = result.plate,
-                    color1 = { data.color and data.color.r or 0, data.color and data.color.g or 0, data.color and data.color.b or 0 },
-                    color2 = { data.color and data.color.r or 0, data.color and data.color.g or 0, data.color and data.color.b or 0 },
+                    color1 = { primaryColor.r, primaryColor.g, primaryColor.b },
+                    color2 = { secondaryColor.r, secondaryColor.g, secondaryColor.b },
                 }
                 QBCore.Functions.SetVehicleProperties(veh, props)
                 SetVehicleOnGroundProperly(veh)
@@ -173,9 +309,10 @@ RegisterNUICallback('purchaseVehicle', function(data, cb)
         closeDealership()
         cb('ok')
     end, {
-        model = data.model,
-        color = data.color or { r = 0, g = 0, b = 0 },
-        plate = data.plate or nil,
+        model          = data.model,
+        color          = data.color or { r = 0, g = 0, b = 0 },
+        secondaryColor = data.secondaryColor,
+        plate          = data.plate or nil,
     })
 end)
 
@@ -333,7 +470,9 @@ end, false)
 
 AddEventHandler('onResourceStop', function(resource)
     if resource ~= GetCurrentResourceName() then return end
+    destroyPreviewCam()
     deletePreview()
+    if savedCoords then teleportBack() end
     for _, ped in ipairs(spawnedNpcs) do
         if DoesEntityExist(ped) then DeleteEntity(ped) end
     end

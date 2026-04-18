@@ -24,7 +24,7 @@ const PRESET_COLORS = [
   '#8a4dbd', '#6b1f7b', '#9933cc', '#bb66ee', '#bf9b6e', '#dab46e', '#c2944e', '#d4a460',
 ]
 
-export function ColorPicker({ selectedColor, onColorChange }) {
+export function ColorPicker({ label = 'Vehicle Color', selectedColor, onColorChange }) {
   const [hexInput, setHexInput] = useState(rgbToHex(selectedColor))
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function ColorPicker({ selectedColor, onColorChange }) {
   return (
     <div>
       <p style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 8 }}>
-        Vehicle Color
+        {label}
       </p>
 
       {/* Preview + Hex Input */}

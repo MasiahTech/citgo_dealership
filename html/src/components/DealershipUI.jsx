@@ -11,9 +11,12 @@ export function DealershipUI({
   searchQuery, onSearchChange,
   sortMode, onSortChange,
   selectedVehicle, onSelectVehicle, onBack,
-  selectedColor, onColorChange,
+  primaryColor, onPrimaryColorChange,
+  secondaryColor, onSecondaryColorChange, onToggleSecondary,
+  secondaryColorPrice,
   plateText, onPlateChange, plateAvailable, onCheckPlate,
   purchasing, onPurchase, onClose,
+  previewing, onPreview, onExitPreview,
 }) {
   const categoryVehicles = useMemo(() => {
     if (!activeCategory) return vehicles
@@ -23,18 +26,20 @@ export function DealershipUI({
   return (
     <div className="fixed inset-0 z-9998 bg-transparent pointer-events-none">
 
-      {/* LEFT: Category sidebar */}
-      <div
-        className="pointer-events-auto fixed left-5 top-5 bottom-5 z-9999 flex flex-col glass animate-enter"
-        style={{ width: 260, borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
-        <CategorySidebar
-          categories={categories}
-          vehicles={vehicles}
-          activeCategory={activeCategory}
-          onSelect={onCategoryChange}
-          shopLabel={shopLabel}
-        />
-      </div>
+      {/* LEFT: Category sidebar — hidden during preview */}
+      {!previewing && (
+        <div
+          className="pointer-events-auto fixed left-5 top-5 bottom-5 z-9999 flex flex-col glass animate-enter"
+          style={{ width: 260, borderRadius: 14, border: border(), boxShadow: '0 8px 40px rgba(0,0,0,0.7)', overflow: 'hidden' }}>
+          <CategorySidebar
+            categories={categories}
+            vehicles={vehicles}
+            activeCategory={activeCategory}
+            onSelect={onCategoryChange}
+            shopLabel={shopLabel}
+          />
+        </div>
+      )}
 
       {/* RIGHT: Vehicles / Detail panel */}
       <div
@@ -44,8 +49,12 @@ export function DealershipUI({
         {selectedVehicle ? (
           <VehicleDetail
             vehicle={selectedVehicle}
-            selectedColor={selectedColor}
-            onColorChange={onColorChange}
+            primaryColor={primaryColor}
+            onPrimaryColorChange={onPrimaryColorChange}
+            secondaryColor={secondaryColor}
+            onSecondaryColorChange={onSecondaryColorChange}
+            onToggleSecondary={onToggleSecondary}
+            secondaryColorPrice={secondaryColorPrice}
             plateText={plateText}
             onPlateChange={onPlateChange}
             plateAvailable={plateAvailable}
@@ -53,6 +62,9 @@ export function DealershipUI({
             purchasing={purchasing}
             onPurchase={onPurchase}
             onBack={onBack}
+            previewing={previewing}
+            onPreview={onPreview}
+            onExitPreview={onExitPreview}
           />
         ) : (
           <VehicleGrid
@@ -65,6 +77,22 @@ export function DealershipUI({
           />
         )}
       </div>
+
+      {/* Preview camera hints */}
+      {previewing && (
+        <div className="pointer-events-none fixed bottom-8 left-1/2 z-9999 animate-enter"
+          style={{ transform: 'translateX(-50%)' }}>
+          <div className="glass pointer-events-none" style={{
+            padding: '8px 20px', borderRadius: 10, border: border(0.1),
+          }}>
+            <span style={{ fontSize: 10, color: '#888' }}>
+              <span style={{ color: '#aaa', fontWeight: 600 }}>Drag</span> rotate &nbsp;·&nbsp;
+              <span style={{ color: '#aaa', fontWeight: 600 }}>Scroll</span> zoom &nbsp;·&nbsp;
+              <span style={{ color: '#aaa', fontWeight: 600 }}>W/S</span> height
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

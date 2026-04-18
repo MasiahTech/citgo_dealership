@@ -77,9 +77,11 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
         return
     end
 
-    local price = vehicleData.price
-    local cash  = Player.PlayerData.money['cash']
-    local bank  = Player.PlayerData.money['bank']
+    local hasSecondary = data.secondaryColor ~= nil
+    local surcharge    = hasSecondary and Config.SecondaryColorPrice or 0
+    local price        = vehicleData.price + surcharge
+    local cash         = Player.PlayerData.money['cash']
+    local bank         = Player.PlayerData.money['bank']
 
     if bank >= price then
         Player.Functions.RemoveMoney('bank', price, 'vehicle-purchase')
@@ -99,12 +101,13 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
         plate = generatePlate()
     end
 
-    local color = data.color or { r = 0, g = 0, b = 0 }
+    local primaryColor   = data.color or { r = 0, g = 0, b = 0 }
+    local secondaryColor = data.secondaryColor or primaryColor
     local hash = tostring(joaat(model))
     local mods = json.encode({
         plate  = plate,
-        color1 = { color.r or 0, color.g or 0, color.b or 0 },
-        color2 = { color.r or 0, color.g or 0, color.b or 0 },
+        color1 = { primaryColor.r or 0, primaryColor.g or 0, primaryColor.b or 0 },
+        color2 = { secondaryColor.r or 0, secondaryColor.g or 0, secondaryColor.b or 0 },
         fuelLevel    = 100.0,
         engineHealth = 1000.0,
         bodyHealth   = 1000.0,
