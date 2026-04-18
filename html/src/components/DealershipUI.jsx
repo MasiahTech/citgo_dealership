@@ -18,6 +18,8 @@ export function DealershipUI({
   plateText, onPlateChange, plateAvailable, onCheckPlate,
   purchasing, onPurchase, onClose,
   previewing, onPreview, onExitPreview,
+  financeEnabled, financeInfo, financeLoading,
+  onGetFinanceInfo, onFinance,
 }) {
   const categoryVehicles = useMemo(() => {
     if (!activeCategory) return vehicles
@@ -122,6 +124,11 @@ export function DealershipUI({
             previewing={previewing}
             onPreview={onPreview}
             onExitPreview={onExitPreview}
+            financeEnabled={financeEnabled}
+            financeInfo={financeInfo}
+            financeLoading={financeLoading}
+            onGetFinanceInfo={onGetFinanceInfo}
+            onFinance={onFinance}
           />
         ) : (
           <VehicleGrid

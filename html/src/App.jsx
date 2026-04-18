@@ -22,6 +22,9 @@ export default function App() {
   const [sortMode, setSortMode]         = useState('name-asc')
   const [previewing, setPreviewing]     = useState(false)
   const [secondaryColorPrice, setSecondaryColorPrice] = useState(2000)
+  const [financeEnabled, setFinanceEnabled] = useState(false)
+  const [financeInfo, setFinanceInfo]   = useState(null)
+  const [financeLoading, setFinanceLoading] = useState(false)
 
   useEffect(() => {
     const handler = (e) => {
@@ -33,6 +36,7 @@ export default function App() {
         setCategories(d.categories || [])
         setShopLabel(d.shopLabel || 'Dealership')
         setSecondaryColorPrice(d.secondaryColorPrice || 2000)
+        setFinanceEnabled(d.financeEnabled || false)
         setActiveCategory(null)
         setSearchQuery('')
         setSelectedVehicle(null)
@@ -42,6 +46,8 @@ export default function App() {
         setPlateAvailable(null)
         setPurchasing(false)
         setPreviewing(false)
+        setFinanceInfo(null)
+        setFinanceLoading(false)
         setSortMode('name-asc')
         setVisible(true)
         return
@@ -64,6 +70,7 @@ export default function App() {
     setPlateText('')
     setPlateAvailable(null)
     setPreviewing(false)
+    setFinanceInfo(null)
   }, [])
 
   const handleBack = useCallback(() => {
@@ -76,6 +83,7 @@ export default function App() {
     setSecondaryColor(null)
     setPlateText('')
     setPlateAvailable(null)
+    setFinanceInfo(null)
   }, [previewing])
 
   const handlePreview = useCallback(() => {
@@ -113,6 +121,7 @@ export default function App() {
       setSecondaryColor(null)
       if (previewing) fetchNUI('changeSecondaryColor', { color: primaryColor })
     }
+    setFinanceInfo(null)
   }, [primaryColor, previewing])
 
   const handlePlateChange = useCallback((plate) => {
@@ -134,6 +143,29 @@ export default function App() {
     if (!selectedVehicle || purchasing) return
     setPurchasing(true)
     fetchNUI('purchaseVehicle', {
+      model: selectedVehicle.model,
+      color: primaryColor,
+      secondaryColor: secondaryColor,
+      plate: plateText || null,
+    })
+  }, [selectedVehicle, primaryColor, secondaryColor, plateText, purchasing])
+
+  const handleGetFinanceInfo = useCallback(async () => {
+    if (!selectedVehicle || financeLoading) return
+    setFinanceLoading(true)
+    const surcharge = secondaryColor ? secondaryColorPrice : 0
+    const result = await fetchNUI('getFinanceInfo', {
+      model: selectedVehicle.model,
+      surcharge,
+    })
+    setFinanceInfo(result)
+    setFinanceLoading(false)
+  }, [selectedVehicle, secondaryColor, secondaryColorPrice, financeLoading])
+
+  const handleFinance = useCallback(() => {
+    if (!selectedVehicle || purchasing) return
+    setPurchasing(true)
+    fetchNUI('financeVehicle', {
       model: selectedVehicle.model,
       color: primaryColor,
       secondaryColor: secondaryColor,
@@ -200,6 +232,11 @@ export default function App() {
       previewing={previewing}
       onPreview={handlePreview}
       onExitPreview={handleExitPreview}
+      financeEnabled={financeEnabled}
+      financeInfo={financeInfo}
+      financeLoading={financeLoading}
+      onGetFinanceInfo={handleGetFinanceInfo}
+      onFinance={handleFinance}
     />
   )
 }

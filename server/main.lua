@@ -28,6 +28,95 @@ local function generatePlate()
     return plate
 end
 
+local function getVehicleData(model)
+    for _, veh in pairs(QBCore.Shared.Vehicles) do
+        if veh.model == model then return veh end
+    end
+    return nil
+end
+
+local function buildMods(plate, primaryColor, secondaryColor)
+    local pc = primaryColor or { r = 0, g = 0, b = 0 }
+    local sc = secondaryColor or pc
+    return json.encode({
+        plate  = plate,
+        color1 = { pc.r or 0, pc.g or 0, pc.b or 0 },
+        color2 = { sc.r or 0, sc.g or 0, sc.b or 0 },
+        fuelLevel    = 100.0,
+        engineHealth = 1000.0,
+        bodyHealth   = 1000.0,
+    })
+end
+
+local function insertVehicle(citizenid, model, plate, mods)
+    local hash = tostring(joaat(model))
+    MySQL.insert.await(
+        'INSERT INTO player_vehicles (citizenid, vehicle, hash, mods, plate, garage, fuel, engine, body, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        { citizenid, model, hash, mods, plate, Config.DefaultGarage, 100, 1000.0, 1000.0, 0 }
+    )
+end
+
+local function resolvePlate(requested)
+    if requested then
+        local taken = MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ?', { requested })
+        if taken then return generatePlate() end
+        return requested
+    end
+    return generatePlate()
+end
+
+-- ── Finance Helpers ─────────────────────────────────────────────────────────
+
+local function getFinanceTier(score)
+    for _, tier in ipairs(Config.Finance.tiers) do
+        if score >= tier.minScore then return tier end
+    end
+    return nil
+end
+
+local function getFinanceDetails(citizenid, vehiclePrice)
+    if not Config.Finance.enabled then
+        return nil, 'Financing is not available'
+    end
+
+    local score = exports['tgg-banking']:GetCreditScore(citizenid)
+    if not score then
+        return nil, 'Unable to retrieve credit score'
+    end
+
+    if score < Config.Finance.minCreditScore then
+        return nil, 'Credit score too low to finance'
+    end
+
+    local tier = getFinanceTier(score)
+    if not tier then
+        return nil, 'No eligible financing tier'
+    end
+
+    if vehiclePrice > tier.maxPrice then
+        return nil, ('Credit score too low for vehicles over $%s'):format(
+            tostring(math.floor(tier.maxPrice))
+        )
+    end
+
+    local totalInterest  = vehiclePrice * (tier.rate / 100)
+    local totalOwed      = vehiclePrice + totalInterest
+    local dailyPayment   = math.ceil(totalOwed / Config.Finance.loanDuration)
+
+    return {
+        score         = score,
+        tier          = tier.label,
+        rate          = tier.rate,
+        totalOwed     = totalOwed,
+        totalInterest = totalInterest,
+        duration      = Config.Finance.loanDuration,
+        dailyPayment  = dailyPayment,
+        maxPrice      = tier.maxPrice,
+    }
+end
+
+-- ── Callbacks ───────────────────────────────────────────────────────────────
+
 QBCore.Functions.CreateCallback('citgo_dealership:getVehicles', function(source, cb, shopKey)
     local vehicles = {}
     for _, veh in pairs(QBCore.Shared.Vehicles) do
@@ -70,6 +159,34 @@ QBCore.Functions.CreateCallback('citgo_dealership:checkPlate', function(source, 
     cb(not result)
 end)
 
+QBCore.Functions.CreateCallback('citgo_dealership:getFinanceInfo', function(source, cb, data)
+    local Player = QBCore.Functions.GetPlayer(source)
+    if not Player then cb({ available = false, reason = 'Player not found' }) return end
+
+    local vehicleData = getVehicleData(data.model)
+    if not vehicleData then cb({ available = false, reason = 'Vehicle not found' }) return end
+
+    local totalPrice = vehicleData.price + (data.surcharge or 0)
+    local details, err = getFinanceDetails(Player.PlayerData.citizenid, totalPrice)
+
+    if not details then
+        cb({ available = false, reason = err })
+        return
+    end
+
+    cb({
+        available    = true,
+        score        = details.score,
+        tier         = details.tier,
+        rate         = details.rate,
+        totalOwed    = details.totalOwed,
+        interest     = details.totalInterest,
+        duration     = details.duration,
+        dailyPayment = details.dailyPayment,
+        maxPrice     = details.maxPrice,
+    })
+end)
+
 QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(source, cb, data)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -77,14 +194,7 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
 
     local model = data.model
     local plate = data.plate and data.plate:upper():sub(1, 8) or nil
-
-    local vehicleData = nil
-    for _, veh in pairs(QBCore.Shared.Vehicles) do
-        if veh.model == model then
-            vehicleData = veh
-            break
-        end
-    end
+    local vehicleData = getVehicleData(model)
 
     if not vehicleData then
         cb({ success = false, message = 'Vehicle not found' })
@@ -106,31 +216,104 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
         return
     end
 
-    if plate then
-        local taken = MySQL.scalar.await('SELECT 1 FROM player_vehicles WHERE plate = ?', { plate })
-        if taken then
-            plate = generatePlate()
-        end
-    else
-        plate = generatePlate()
-    end
-
-    local primaryColor   = data.color or { r = 0, g = 0, b = 0 }
-    local secondaryColor = data.secondaryColor or primaryColor
-    local hash = tostring(joaat(model))
-    local mods = json.encode({
-        plate  = plate,
-        color1 = { primaryColor.r or 0, primaryColor.g or 0, primaryColor.b or 0 },
-        color2 = { secondaryColor.r or 0, secondaryColor.g or 0, secondaryColor.b or 0 },
-        fuelLevel    = 100.0,
-        engineHealth = 1000.0,
-        bodyHealth   = 1000.0,
-    })
-
-    MySQL.insert.await(
-        'INSERT INTO player_vehicles (citizenid, vehicle, hash, mods, plate, garage, fuel, engine, body, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        { Player.PlayerData.citizenid, model, hash, mods, plate, Config.DefaultGarage, 100, 1000.0, 1000.0, 0 }
-    )
+    plate = resolvePlate(plate)
+    local mods = buildMods(plate, data.color, data.secondaryColor)
+    insertVehicle(Player.PlayerData.citizenid, model, plate, mods)
 
     cb({ success = true, plate = plate, price = price })
+end)
+
+QBCore.Functions.CreateCallback('citgo_dealership:financeVehicle', function(source, cb, data)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then cb({ success = false, message = 'Player not found' }) return end
+
+    local model = data.model
+    local plate = data.plate and data.plate:upper():sub(1, 8) or nil
+    local vehicleData = getVehicleData(model)
+
+    if not vehicleData then
+        cb({ success = false, message = 'Vehicle not found' })
+        return
+    end
+
+    local hasSecondary = data.secondaryColor ~= nil
+    local surcharge    = hasSecondary and Config.SecondaryColorPrice or 0
+    local totalPrice   = vehicleData.price + surcharge
+    local citizenid    = Player.PlayerData.citizenid
+
+    local details, err = getFinanceDetails(citizenid, totalPrice)
+    if not details then
+        cb({ success = false, message = err })
+        return
+    end
+
+    local loanResult = exports['tgg-banking']:CreateAndApproveLoan(citizenid, {
+        amount           = totalPrice,
+        duration         = Config.Finance.loanDuration,
+        paymentFrequency = Config.Finance.paymentFrequency,
+        autoPayment      = Config.Finance.autoPayment,
+    })
+
+    if not loanResult or not loanResult.success then
+        cb({ success = false, message = loanResult and loanResult.message or 'Loan denied by bank' })
+        return
+    end
+
+    plate = resolvePlate(plate)
+    local mods = buildMods(plate, data.color, data.secondaryColor)
+    insertVehicle(citizenid, model, plate, mods)
+
+    -- Track the loan-to-vehicle mapping for repo system
+    MySQL.insert.await(
+        'INSERT INTO dealership_loans (citizenid, loan_id, vehicle, plate, financed_at) VALUES (?, ?, ?, ?, NOW())',
+        { citizenid, loanResult.loanId, model, plate }
+    )
+
+    cb({
+        success      = true,
+        plate        = plate,
+        loanId       = loanResult.loanId,
+        totalOwed    = details.totalOwed,
+        dailyPayment = details.dailyPayment,
+        rate         = details.rate,
+    })
+end)
+
+-- ── Repo System — check for missed payments ─────────────────────────────────
+
+CreateThread(function()
+    if not Config.Finance.enabled then return end
+
+    while true do
+        Wait(Config.Finance.repoCheckInterval * 1000)
+
+        local loans = MySQL.query.await('SELECT * FROM dealership_loans WHERE repossessed = 0')
+        if loans then
+            for _, record in ipairs(loans) do
+                local paymentInfo = exports['tgg-banking']:GetLoanPaymentDue(record.loan_id)
+
+                if paymentInfo and paymentInfo.missedPayments and paymentInfo.missedPayments >= Config.Finance.maxMissedPayments then
+                    -- Repossess: delete vehicle from player_vehicles
+                    MySQL.update.await('DELETE FROM player_vehicles WHERE citizenid = ? AND plate = ?', {
+                        record.citizenid, record.plate
+                    })
+                    MySQL.update.await('UPDATE dealership_loans SET repossessed = 1 WHERE id = ?', { record.id })
+
+                    -- Notify player if online
+                    local Player = QBCore.Functions.GetPlayerByCitizenId(record.citizenid)
+                    if Player then
+                        TriggerClientEvent('QBCore:Notify', Player.PlayerData.source,
+                            'Your ' .. record.vehicle .. ' has been repossessed due to missed payments',
+                            'error', 10000
+                        )
+                    end
+
+                    print(('[citgo_dealership] Repossessed %s (plate: %s) from %s — %d missed payments'):format(
+                        record.vehicle, record.plate, record.citizenid, paymentInfo.missedPayments
+                    ))
+                end
+            end
+        end
+    end
 end)

@@ -164,12 +164,13 @@ local function openDealership(shopId)
         end
 
         SendNUIMessage({
-            type               = 'open',
-            vehicles           = filtered,
-            categories         = cats,
-            shopLabel          = shop.label,
-            shopId             = shopId,
+            type                = 'open',
+            vehicles            = filtered,
+            categories          = cats,
+            shopLabel           = shop.label,
+            shopId              = shopId,
             secondaryColorPrice = Config.SecondaryColorPrice,
+            financeEnabled      = Config.Finance.enabled,
         })
         SetNuiFocus(true, true)
     end, shop.shopKey)
@@ -299,6 +300,60 @@ RegisterNUICallback('purchaseVehicle', function(data, cb)
             end, spawn, true, false)
         else
             QBCore.Functions.Notify(result.message or 'Purchase failed', 'error', 3000)
+        end
+
+        closeDealership()
+        cb('ok')
+    end, {
+        model          = data.model,
+        color          = data.color or { r = 0, g = 0, b = 0 },
+        secondaryColor = data.secondaryColor,
+        plate          = data.plate or nil,
+    })
+end)
+
+RegisterNUICallback('getFinanceInfo', function(data, cb)
+    QBCore.Functions.TriggerCallback('citgo_dealership:getFinanceInfo', function(result)
+        cb(result)
+    end, data)
+end)
+
+RegisterNUICallback('financeVehicle', function(data, cb)
+    QBCore.Functions.TriggerCallback('citgo_dealership:financeVehicle', function(result)
+        if result.success then
+            destroyPreviewCam()
+            deletePreview()
+            teleportBack()
+
+            QBCore.Functions.Notify(
+                ('Vehicle financed! Plate: %s | $%s/day for %d days'):format(
+                    result.plate,
+                    tostring(math.floor(result.dailyPayment)),
+                    Config.Finance.loanDuration
+                ),
+                'success', 8000
+            )
+
+            local shop  = Config.Dealerships[currentShop]
+            local spawn = shop.spawnPoint
+            QBCore.Functions.SpawnVehicle(data.model, function(veh)
+                local primaryColor   = data.color or { r = 0, g = 0, b = 0 }
+                local secondaryColor = data.secondaryColor or primaryColor
+                local props = {
+                    plate  = result.plate,
+                    color1 = { primaryColor.r, primaryColor.g, primaryColor.b },
+                    color2 = { secondaryColor.r, secondaryColor.g, secondaryColor.b },
+                }
+                QBCore.Functions.SetVehicleProperties(veh, props)
+                SetVehicleOnGroundProperly(veh)
+                FreezeEntityPosition(veh, false)
+                SetEntityInvincible(veh, false)
+                TaskWarpPedIntoVehicle(PlayerPedId(), veh, -1)
+                TriggerEvent('vehiclekeys:client:SetOwner', result.plate)
+                SetVehicleEngineOn(veh, true, true)
+            end, spawn, true, false)
+        else
+            QBCore.Functions.Notify(result.message or 'Financing denied', 'error', 3000)
         end
 
         closeDealership()

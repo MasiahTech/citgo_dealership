@@ -16,3 +16,16 @@ CREATE TABLE IF NOT EXISTS `player_vehicles` (
   INDEX (`citizenid`),
   INDEX (`plate`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `dealership_loans` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `citizenid` VARCHAR(50) NOT NULL,
+  `loan_id` INT NOT NULL,
+  `vehicle` VARCHAR(50) NOT NULL,
+  `plate` VARCHAR(8) NOT NULL,
+  `financed_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `repossessed` TINYINT NOT NULL DEFAULT 0,
+  INDEX (`citizenid`),
+  INDEX (`loan_id`),
+  INDEX (`repossessed`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -9,6 +9,31 @@ Config.SecondaryColorPrice = 2000
 
 Config.PreviewPoint = vec4(1219.25, -2280.94, -49.0, 180.67)
 
+-- ── Finance Settings ────────────────────────────────────────────────────────
+
+Config.Finance = {
+    enabled           = true,
+    loanDuration      = 30,            -- days
+    paymentFrequency  = 'daily',       -- 'daily', 'weekly'
+    autoPayment       = true,          -- auto-deduct from bank
+    maxMissedPayments = 4,             -- repo after this many missed
+    repoCheckInterval = 60,            -- seconds between repo checks
+
+    -- Credit score tiers: determines max vehicle price and interest rate
+    -- Higher credit = cheaper loans and access to expensive vehicles
+    tiers = {
+        { minScore = 800, maxPrice = math.huge, rate = 3.5,  label = 'Excellent' },
+        { minScore = 700, maxPrice = math.huge, rate = 7.0,  label = 'Good' },
+        { minScore = 600, maxPrice = 250000,    rate = 12.0, label = 'Fair' },
+        { minScore = 500, maxPrice = 100000,    rate = 18.0, label = 'Poor' },
+        { minScore = 300, maxPrice = 50000,     rate = 24.0, label = 'Bad' },
+    },
+
+    minCreditScore = 300, -- minimum score to finance at all
+}
+
+-- ── Dealerships ─────────────────────────────────────────────────────────────
+
 Config.Dealerships = {
     pdm = {
         label        = 'Premium Deluxe Motorsport',
