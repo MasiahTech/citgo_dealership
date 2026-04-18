@@ -4,6 +4,8 @@ import { fetchNUI } from './utils/fetchNUI'
 
 export { fetchNUI }
 
+const DEFAULT_COLOR = { r: 28, g: 29, b: 33 }
+
 export default function App() {
   const [visible, setVisible]           = useState(false)
   const [vehicles, setVehicles]         = useState([])
@@ -12,7 +14,7 @@ export default function App() {
   const [activeCategory, setActiveCategory] = useState(null)
   const [searchQuery, setSearchQuery]   = useState('')
   const [selectedVehicle, setSelectedVehicle] = useState(null)
-  const [selectedColor, setSelectedColor] = useState(0)
+  const [selectedColor, setSelectedColor] = useState(DEFAULT_COLOR)
   const [plateText, setPlateText]       = useState('')
   const [plateAvailable, setPlateAvailable] = useState(null)
   const [purchasing, setPurchasing]     = useState(false)
@@ -30,7 +32,7 @@ export default function App() {
         setActiveCategory(null)
         setSearchQuery('')
         setSelectedVehicle(null)
-        setSelectedColor(0)
+        setSelectedColor(DEFAULT_COLOR)
         setPlateText('')
         setPlateAvailable(null)
         setPurchasing(false)
@@ -50,23 +52,23 @@ export default function App() {
 
   const handleSelectVehicle = useCallback((vehicle) => {
     setSelectedVehicle(vehicle)
-    setSelectedColor(0)
+    setSelectedColor(DEFAULT_COLOR)
     setPlateText('')
     setPlateAvailable(null)
-    fetchNUI('previewVehicle', { model: vehicle.model, colorId: 0 })
+    fetchNUI('previewVehicle', { model: vehicle.model, color: DEFAULT_COLOR })
   }, [])
 
   const handleBack = useCallback(() => {
     setSelectedVehicle(null)
-    setSelectedColor(0)
+    setSelectedColor(DEFAULT_COLOR)
     setPlateText('')
     setPlateAvailable(null)
     fetchNUI('previewVehicle', { model: null })
   }, [])
 
-  const handleColorChange = useCallback((colorId) => {
-    setSelectedColor(colorId)
-    fetchNUI('changeColor', { colorId })
+  const handleColorChange = useCallback((color) => {
+    setSelectedColor(color)
+    fetchNUI('changeColor', { color })
   }, [])
 
   const handlePlateChange = useCallback((plate) => {
@@ -89,7 +91,7 @@ export default function App() {
     setPurchasing(true)
     fetchNUI('purchaseVehicle', {
       model: selectedVehicle.model,
-      colorId: selectedColor,
+      color: selectedColor,
       plate: plateText || null,
     })
   }, [selectedVehicle, selectedColor, plateText, purchasing])

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ArrowLeft, ShoppingCart, CheckCircle, XCircle, Search } from 'lucide-react'
+import { ArrowLeft, ShoppingCart, CheckCircle, XCircle, Search, Check, X } from 'lucide-react'
 import { ColorPicker } from './ColorPicker'
 
 const border = (o = 0.06) => `1px solid rgba(255,255,255,${o})`
@@ -29,61 +29,66 @@ export function VehicleDetail({
 
   return (
     <div className="flex flex-col h-full">
-      <div style={{ padding: '10px 14px', flexShrink: 0 }}>
+      {/* Header */}
+      <div style={{ padding: '15px 16px 11px', flexShrink: 0 }}>
         <button
           onClick={onBack}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: 'none', border: 'none', cursor: 'pointer',
-            color: '#888', fontSize: 11, fontWeight: 500, padding: 0,
+            color: '#888', fontSize: 11, fontWeight: 500, padding: 0, marginBottom: 8,
           }}>
           <ArrowLeft style={{ width: 12, height: 12 }} />
-          Back to vehicles
+          Back
         </button>
+        <p style={{ fontSize: 16, fontWeight: 700, color: '#eee', letterSpacing: '-0.02em' }}>
+          {vehicle.name}
+        </p>
+        <p style={{ fontSize: 11, color: '#444', marginTop: 3 }}>
+          {vehicle.brand} · {vehicle.category}
+        </p>
       </div>
 
       <div style={{ height: 1, background: bg(0.04) }} />
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ padding: 14 }}>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto scrollbar-thin" style={{ padding: '12px 16px' }}>
+
+        {/* Thumbnail */}
         <div style={{
-          width: '100%', aspectRatio: '16/10', borderRadius: 8, overflow: 'hidden',
+          width: '100%', aspectRatio: '16/9', borderRadius: 8, overflow: 'hidden',
           background: 'rgba(0,0,0,0.2)', border: border(0.04),
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginBottom: 14, position: 'relative',
+          marginBottom: 12, position: 'relative',
         }}>
           {!thumbSrc && !thumbError && <div className="skeleton" style={{ position: 'absolute', inset: 0 }} />}
           {thumbError && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 32 }}>🚗</span>
+              <span style={{ fontSize: 28 }}>🚗</span>
               <span style={{ fontSize: 10, color: '#555' }}>{vehicle.model}</span>
             </div>
           )}
           {thumbSrc && (
             <img src={thumbSrc} alt="" draggable={false} style={{
               position: 'absolute', inset: 0, width: '100%', height: '100%',
-              objectFit: 'contain', padding: 10,
+              objectFit: 'contain', padding: 8,
             }} />
           )}
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <p style={{ fontSize: 16, fontWeight: 700, color: '#eee', letterSpacing: '-0.02em' }}>
-            {vehicle.name}
-          </p>
-          <p style={{ fontSize: 11, color: '#555', marginTop: 2 }}>
-            {vehicle.brand} · {vehicle.category}
-          </p>
-          <p style={{ fontSize: 18, fontWeight: 700, color: '#22c55e', marginTop: 6 }}>
-            {priceStr}
-          </p>
-        </div>
+        {/* Price */}
+        <p style={{ fontSize: 18, fontWeight: 700, color: '#22c55e', marginBottom: 14 }}>
+          {priceStr}
+        </p>
 
-        <div style={{ height: 1, background: bg(0.04), margin: '12px 0' }} />
+        <div style={{ height: 1, background: bg(0.04), margin: '0 0 12px' }} />
 
+        {/* Color Picker */}
         <ColorPicker selectedColor={selectedColor} onColorChange={onColorChange} />
 
         <div style={{ height: 1, background: bg(0.04), margin: '12px 0' }} />
 
+        {/* License Plate */}
         <div>
           <p style={{ fontSize: 10, fontWeight: 600, color: '#888', marginBottom: 6 }}>
             License Plate
@@ -96,7 +101,7 @@ export function VehicleDetail({
               <input
                 value={plateText}
                 onChange={e => onPlateChange(e.target.value)}
-                placeholder="Custom plate (max 8 chars)"
+                placeholder="Custom plate (max 8)"
                 maxLength={8}
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
@@ -140,33 +145,35 @@ export function VehicleDetail({
         </div>
       </div>
 
+      {/* Bottom bar */}
       <div style={{ height: 1, background: bg(0.04) }} />
-
-      <div style={{ padding: '10px 14px', flexShrink: 0, display: 'flex', gap: 8 }}>
-        <button
-          onClick={onBack}
-          style={{
-            flex: '0 0 auto', height: 34, padding: '0 16px', borderRadius: 7,
-            background: bg(0.03), border: border(0.06),
-            fontSize: 11, fontWeight: 500, color: '#888', cursor: 'pointer',
-          }}>
-          Cancel
-        </button>
+      <div className="flex items-center gap-2 shrink-0" style={{ padding: '8px 12px' }}>
+        <span style={{ flex: 1 }} />
         <button
           onClick={onPurchase}
           disabled={purchasing}
+          className="flex items-center justify-center gap-1.5 cursor-pointer"
           style={{
-            flex: 1, height: 34, borderRadius: 7,
-            background: purchasing ? 'rgba(34,197,94,0.15)' : 'rgba(34,197,94,0.2)',
-            border: '1px solid rgba(34,197,94,0.3)',
+            height: 32, padding: '0 20px', borderRadius: 7,
             fontSize: 12, fontWeight: 700,
-            color: purchasing ? '#555' : '#22c55e',
-            cursor: purchasing ? 'default' : 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            transition: 'all 0.15s',
+            background: purchasing ? '#333' : '#f5f5f5',
+            color: purchasing ? '#666' : '#000',
+            border: 'none',
           }}>
-          <ShoppingCart style={{ width: 13, height: 13 }} />
-          {purchasing ? 'Processing...' : `Purchase ${priceStr}`}
+          <Check style={{ width: 11, height: 11 }} strokeWidth={3} />
+          {purchasing ? 'Processing...' : `Purchase — ${priceStr}`}
+        </button>
+        <button
+          onClick={onBack}
+          className="flex items-center justify-center gap-1.5 cursor-pointer"
+          style={{
+            height: 32, padding: '0 16px', borderRadius: 7,
+            fontSize: 12, fontWeight: 600,
+            background: 'transparent', color: '#666',
+            border: border(0.12),
+          }}>
+          <X style={{ width: 10, height: 10 }} />
+          Cancel
         </button>
       </div>
     </div>

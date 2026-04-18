@@ -44,11 +44,13 @@ local function spawnPreview(model, shopId)
     SetModelAsNoLongerNeeded(hash)
 end
 
-local function applyColor(colorId)
+local function applyColor(color)
     if not previewVeh or not DoesEntityExist(previewVeh) then return end
-    ClearVehicleCustomPrimaryColour(previewVeh)
-    ClearVehicleCustomSecondaryColour(previewVeh)
-    SetVehicleColours(previewVeh, colorId, colorId)
+    local r = color.r or 0
+    local g = color.g or 0
+    local b = color.b or 0
+    SetVehicleCustomPrimaryColour(previewVeh, r, g, b)
+    SetVehicleCustomSecondaryColour(previewVeh, r, g, b)
 end
 
 local function applyPlate(plate)
@@ -115,14 +117,14 @@ end
 RegisterNUICallback('previewVehicle', function(data, cb)
     if data.model and currentShop then
         spawnPreview(data.model, currentShop)
-        if data.colorId then applyColor(data.colorId) end
+        if data.color then applyColor(data.color) end
         if data.plate and #data.plate > 0 then applyPlate(data.plate) end
     end
     cb('ok')
 end)
 
 RegisterNUICallback('changeColor', function(data, cb)
-    if data.colorId then applyColor(data.colorId) end
+    if data.color then applyColor(data.color) end
     cb('ok')
 end)
 
@@ -153,8 +155,8 @@ RegisterNUICallback('purchaseVehicle', function(data, cb)
             QBCore.Functions.SpawnVehicle(data.model, function(veh)
                 local props = {
                     plate  = result.plate,
-                    color1 = data.colorId or 0,
-                    color2 = data.colorId or 0,
+                    color1 = { data.color and data.color.r or 0, data.color and data.color.g or 0, data.color and data.color.b or 0 },
+                    color2 = { data.color and data.color.r or 0, data.color and data.color.g or 0, data.color and data.color.b or 0 },
                 }
                 QBCore.Functions.SetVehicleProperties(veh, props)
                 SetVehicleOnGroundProperly(veh)
@@ -171,9 +173,9 @@ RegisterNUICallback('purchaseVehicle', function(data, cb)
         closeDealership()
         cb('ok')
     end, {
-        model   = data.model,
-        colorId = data.colorId or 0,
-        plate   = data.plate or nil,
+        model = data.model,
+        color = data.color or { r = 0, g = 0, b = 0 },
+        plate = data.plate or nil,
     })
 end)
 
@@ -315,6 +317,17 @@ if Config.UseOxRadial and GetResourceState('ox_lib') == 'started' then
         end
     end)
 end
+
+-- ── Dev Test Command ────────────────────────────────────────────────────────
+
+RegisterCommand('dealership', function(_, args)
+    local shopId = args[1] or 'pdm'
+    if not Config.Dealerships[shopId] then
+        QBCore.Functions.Notify('Invalid dealership: ' .. shopId, 'error', 3000)
+        return
+    end
+    openDealership(shopId)
+end, false)
 
 -- ── Cleanup ──────────────────────────────────────────────────────────────────
 

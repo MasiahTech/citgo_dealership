@@ -16,7 +16,7 @@ end
 
 QBCore.Functions.CreateCallback('citgo_dealership:getVehicles', function(source, cb, shopKey)
     local vehicles = {}
-    for _, veh in pairs(QBShared.Vehicles) do
+    for _, veh in pairs(QBCore.Shared.Vehicles) do
         local shop = veh.shop
         if type(shop) == 'table' then
             for _, s in ipairs(shop) do
@@ -61,12 +61,11 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then cb({ success = false, message = 'Player not found' }) return end
 
-    local model    = data.model
-    local colorId  = data.colorId or 0
-    local plate    = data.plate and data.plate:upper():sub(1, 8) or nil
+    local model = data.model
+    local plate = data.plate and data.plate:upper():sub(1, 8) or nil
 
     local vehicleData = nil
-    for _, veh in pairs(QBShared.Vehicles) do
+    for _, veh in pairs(QBCore.Shared.Vehicles) do
         if veh.model == model then
             vehicleData = veh
             break
@@ -100,11 +99,12 @@ QBCore.Functions.CreateCallback('citgo_dealership:purchaseVehicle', function(sou
         plate = generatePlate()
     end
 
+    local color = data.color or { r = 0, g = 0, b = 0 }
     local hash = tostring(joaat(model))
     local mods = json.encode({
         plate  = plate,
-        color1 = colorId,
-        color2 = colorId,
+        color1 = { color.r or 0, color.g or 0, color.b or 0 },
+        color2 = { color.r or 0, color.g or 0, color.b or 0 },
         fuelLevel    = 100.0,
         engineHealth = 1000.0,
         bodyHealth   = 1000.0,
