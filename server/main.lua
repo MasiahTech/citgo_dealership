@@ -87,10 +87,6 @@ local function getFinanceDetails(citizenid, vehiclePrice)
         return nil, 'Unable to retrieve credit score'
     end
 
-    if score < Config.Finance.minCreditScore then
-        return nil, 'Credit score too low to finance'
-    end
-
     local tier = getFinanceTier(score)
     if not tier then
         return nil, 'No eligible financing tier'

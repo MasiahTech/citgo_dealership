@@ -27,9 +27,8 @@ Config.Finance = {
         { minScore = 600, maxPrice = 250000,    rate = 12.0, label = 'Fair' },
         { minScore = 500, maxPrice = 100000,    rate = 18.0, label = 'Poor' },
         { minScore = 300, maxPrice = 50000,     rate = 24.0, label = 'Bad' },
+        { minScore = 0,   maxPrice = 25000,     rate = 30.0, label = 'Very Bad' },
     },
-
-    minCreditScore = 300, -- minimum score to finance at all
 }
 
 -- ── Dealerships ─────────────────────────────────────────────────────────────
