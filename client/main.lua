@@ -1,4 +1,4 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+-- QBCore and Framework globals are set by shared/framework.lua
 
 local isOpen       = false
 local previewVeh   = nil
@@ -173,7 +173,7 @@ local function openDealership(shopId)
             financeEnabled      = Config.Finance.enabled,
         })
         SetNuiFocus(true, true)
-    end, shop.shopKey)
+    end, shop.shopKey, shop.categories)
 end
 
 local function closeDealership()

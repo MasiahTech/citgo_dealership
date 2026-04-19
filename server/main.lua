@@ -1,4 +1,4 @@
-local QBCore = exports['qb-core']:GetCoreObject()
+-- QBCore and Framework globals are set by shared/framework.lua
 
 -- ── Routing Buckets ─────────────────────────────────────────────────────────
 
@@ -28,8 +28,19 @@ local function generatePlate()
     return plate
 end
 
+local function getAllVehicles()
+    if Framework.isQbx then
+        return exports.qbx_core:GetVehiclesByName()
+    end
+    return QBCore.Shared.Vehicles
+end
+
 local function getVehicleData(model)
-    for _, veh in pairs(QBCore.Shared.Vehicles) do
+    local vehicles = getAllVehicles()
+    if Framework.isQbx then
+        return vehicles[model]
+    end
+    for _, veh in pairs(vehicles) do
         if veh.model == model then return veh end
     end
     return nil
@@ -116,35 +127,59 @@ end
 
 -- ── Callbacks ───────────────────────────────────────────────────────────────
 
-QBCore.Functions.CreateCallback('citgo_dealership:getVehicles', function(source, cb, shopKey)
+QBCore.Functions.CreateCallback('citgo_dealership:getVehicles', function(source, cb, shopKey, shopCategories)
     local vehicles = {}
-    for _, veh in pairs(QBCore.Shared.Vehicles) do
-        local shop = veh.shop
-        if type(shop) == 'table' then
-            for _, s in ipairs(shop) do
-                if s == shopKey then
-                    vehicles[#vehicles + 1] = {
-                        model    = veh.model,
-                        name     = veh.name,
-                        brand    = veh.brand,
-                        price    = veh.price,
-                        category = veh.category,
-                        type     = veh.type,
-                    }
-                    break
-                end
+    local allVehicles = getAllVehicles()
+
+    if Framework.isQbx then
+        -- QBox: no shop field on vehicles, filter by category list from config
+        local catSet = {}
+        if shopCategories then
+            for _, cat in ipairs(shopCategories) do catSet[cat] = true end
+        end
+        for _, veh in pairs(allVehicles) do
+            if catSet[veh.category] then
+                vehicles[#vehicles + 1] = {
+                    model    = veh.model,
+                    name     = veh.name,
+                    brand    = veh.brand,
+                    price    = veh.price,
+                    category = veh.category,
+                    type     = veh.type,
+                }
             end
-        elseif shop == shopKey then
-            vehicles[#vehicles + 1] = {
-                model    = veh.model,
-                name     = veh.name,
-                brand    = veh.brand,
-                price    = veh.price,
-                category = veh.category,
-                type     = veh.type,
-            }
+        end
+    else
+        -- QBCore: filter by shop field
+        for _, veh in pairs(allVehicles) do
+            local shop = veh.shop
+            if type(shop) == 'table' then
+                for _, s in ipairs(shop) do
+                    if s == shopKey then
+                        vehicles[#vehicles + 1] = {
+                            model    = veh.model,
+                            name     = veh.name,
+                            brand    = veh.brand,
+                            price    = veh.price,
+                            category = veh.category,
+                            type     = veh.type,
+                        }
+                        break
+                    end
+                end
+            elseif shop == shopKey then
+                vehicles[#vehicles + 1] = {
+                    model    = veh.model,
+                    name     = veh.name,
+                    brand    = veh.brand,
+                    price    = veh.price,
+                    category = veh.category,
+                    type     = veh.type,
+                }
+            end
         end
     end
+
     cb(vehicles)
 end)
 

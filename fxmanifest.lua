@@ -17,6 +17,7 @@ files {
 shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
+    'shared/framework.lua',
 }
 
 client_scripts {
@@ -29,7 +30,7 @@ server_scripts {
 }
 
 dependencies {
-    'qb-core',
     'oxmysql',
+    'ox_lib',
     'uz_AutoShot',
 }
