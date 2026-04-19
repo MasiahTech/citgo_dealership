@@ -1,5 +1,5 @@
--- Framework global is set by shared/framework.lua
-local QBCore = Framework.getCore()
+local isQbx  = GetResourceState('qbx_core') ~= 'missing'
+local QBCore = exports['qb-core']:GetCoreObject()
 
 -- ── Routing Buckets ─────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ local function generatePlate()
 end
 
 local function getAllVehicles()
-    if Framework.isQbx then
+    if isQbx then
         return exports.qbx_core:GetVehiclesByName()
     end
     return QBCore.Shared.Vehicles
@@ -38,7 +38,7 @@ end
 
 local function getVehicleData(model)
     local vehicles = getAllVehicles()
-    if Framework.isQbx then
+    if isQbx then
         return vehicles[model]
     end
     for _, veh in pairs(vehicles) do
@@ -132,7 +132,7 @@ QBCore.Functions.CreateCallback('citgo_dealership:getVehicles', function(source,
     local vehicles = {}
     local allVehicles = getAllVehicles()
 
-    if Framework.isQbx then
+    if isQbx then
         -- QBox: no shop field on vehicles, filter by category list from config
         local catSet = {}
         if shopCategories then

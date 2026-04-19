@@ -17,7 +17,6 @@ files {
 shared_scripts {
     '@ox_lib/init.lua',
     'config.lua',
-    'shared/framework.lua',
 }
 
 client_scripts {

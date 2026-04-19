@@ -1,5 +1,5 @@
--- Framework global is set by shared/framework.lua
-local QBCore = Framework.getCore()
+local isQbx  = GetResourceState('qbx_core') ~= 'missing'
+local QBCore = exports['qb-core']:GetCoreObject()
 
 local isOpen       = false
 local previewVeh   = nil
