@@ -1,3 +1,7 @@
+-- QBCore: player_vehicles table (skip if your framework already created it)
+-- QBox (qbx_core) uses its own player_vehicles schema without the garage column.
+-- Only run this on QBCore servers that don't already have this table.
+
 CREATE TABLE IF NOT EXISTS `player_vehicles` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `citizenid` VARCHAR(50) NOT NULL,

@@ -62,10 +62,17 @@ end
 
 local function insertVehicle(citizenid, model, plate, mods)
     local hash = tostring(joaat(model))
-    MySQL.insert.await(
-        'INSERT INTO player_vehicles (citizenid, vehicle, hash, mods, plate, garage, fuel, engine, body, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        { citizenid, model, hash, mods, plate, Config.DefaultGarage, 100, 1000.0, 1000.0, 0 }
-    )
+    if isQbx then
+        MySQL.insert.await(
+            'INSERT INTO player_vehicles (citizenid, vehicle, hash, mods, plate, fuel, engine, body, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            { citizenid, model, hash, mods, plate, 100, 1000.0, 1000.0, 0 }
+        )
+    else
+        MySQL.insert.await(
+            'INSERT INTO player_vehicles (citizenid, vehicle, hash, mods, plate, garage, fuel, engine, body, state) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            { citizenid, model, hash, mods, plate, Config.DefaultGarage, 100, 1000.0, 1000.0, 0 }
+        )
+    end
 end
 
 local function resolvePlate(requested)
