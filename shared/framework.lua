@@ -12,5 +12,12 @@ Framework = {
     name  = isQbx and 'qbx' or 'qb',
 }
 
--- Both frameworks expose QBCore via qb-core exports (QBox bridge provides it)
-QBCore = exports['qb-core']:GetCoreObject()
+-- QBCore object is initialized lazily — accessed via Framework.getCore()
+-- This avoids load-order issues since dependencies are not hardcoded
+local _core
+function Framework.getCore()
+    if not _core then
+        _core = exports['qb-core']:GetCoreObject()
+    end
+    return _core
+end

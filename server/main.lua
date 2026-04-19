@@ -1,4 +1,5 @@
--- QBCore and Framework globals are set by shared/framework.lua
+-- Framework global is set by shared/framework.lua
+local QBCore = Framework.getCore()
 
 -- ── Routing Buckets ─────────────────────────────────────────────────────────
 
